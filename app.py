@@ -1,7 +1,7 @@
 import gradio as gr
 import numpy as np
 import os
-import pd as pd
+import pandas as pd
 from tensorflow.keras.models import load_model
 
 # Load model - Local path for deployment
