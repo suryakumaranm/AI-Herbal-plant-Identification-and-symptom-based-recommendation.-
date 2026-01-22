@@ -3,77 +3,75 @@ import numpy as np
 import os
 import pandas as pd
 from tensorflow.keras.models import load_model
-from PIL import Image
 
-# --- CONFIGURATION ---
-# Removed Google Drive paths. Files must be in the same folder as this script.
-MODEL_PATH = "herb_identifier.h5"
-DATA_PATH = "herb_data.csv"
+# --- LOAD FILES ---
+# For deployment, files must be in the same folder as this script.
+# Replace the old "/content/drive/MyDrive/..." paths with local filenames.
+model = load_model("herb_identifier.h5")
 
-# Load model and data
-model = load_model(MODEL_PATH)
-df = pd.read_csv(DATA_PATH)
+# Since we aren't using the dataset folder anymore, 
+# you should define your 20 plant names here manually:
+class_names = [
+    "Aloe Vera", "Amla", "Basil", "Corriander", "Curry Leaf",
+    "Fenugreek", "Guava", "Hibiscus", "Jasmine", "Lemon",
+    "Mint", "Neem", "Peppermint", "Rosemary", "Sandalwood",
+    "Spinach", "Stevia", "Tulsi", "Turmeric", "Valerian"
+] 
+
+df = pd.read_csv("herb_data.csv")
 herbal_info = dict(zip(df["herb"], df["benefit"]))
-
-# Get class names (Assumes folder "dataset_HPI" is uploaded with your images)
-if os.path.exists("dataset_HPI"):
-    class_names = sorted(os.listdir("dataset_HPI"))
-else:
-    # Fallback: List your 20 plants here manually if you don't want to upload the whole dataset
-    class_names = ["Aloe Vera", "Basil", "Mint", "Neem", "Tulsi"] # Add all 20 names
 
 def symptom_recommend(symptom):
     symptom = symptom.lower()
-    matched = []
+    matched=[]
     for i in range(len(df)):
         for s in str(df.iloc[i]["symptoms"]).lower().split():
             if s in symptom:
                 matched.append(df.iloc[i]["herb"])
                 break
-    return list(set(matched)) if matched else ["Tulsi", "Turmeric"]
+    return list(set(matched)) if matched else ["Tulsi","Turmeric"]
 
 def predict(img, symptom):
-    img = img.resize((160, 160))
-    img_arr = np.array(img) / 255.0
+    img = img.resize((160,160))
+    img_arr = np.array(img)/255
     img_arr = np.expand_dims(img_arr, axis=0)
 
     pred = model.predict(img_arr)
     plant = class_names[np.argmax(pred)]
-    confidence = round(pred.max() * 100, 2)
+    confidence = round(pred.max()*100,2)
 
-    benefit = herbal_info.get(plant, "No data available")
+    benefit = herbal_info.get(plant,"No data available")
     recommend = symptom_recommend(symptom)
 
     return plant, f"{confidence} %", benefit, ", ".join(recommend)
 
-# --- UI DESIGN ---
+# --- YOUR GRADIO UI ---
 css = """
-body {background: linear-gradient(to right, #e8f5e9, #ffffff);}
-#title {text-align: center; color: #1b5e20; font-family: 'Arial';}
-.gradio-container {border-radius: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.1);}
+body {background: linear-gradient(to right,#e8f5e9,#ffffff);}
+h1 {text-align:center;color:#1b5e20;}
 """
 
-with gr.Blocks(css=css, title="AI Herb Identifier") as app:
-    gr.Markdown("# 🌿 AI Herbal Plant Identification & Recommendation System", elem_id="title")
-    gr.Markdown("Identify medicinal plants and get recommendations based on symptoms.")
+with gr.Blocks(css=css) as app:
+    gr.Markdown("<h1>🌿 AI Herbal Plant Identification & Recommendation System</h1>")
+    gr.Markdown("Upload a leaf image and enter symptoms to get AI-based herbal guidance.")
 
     with gr.Row():
-        with gr.Column():
-            img_input = gr.Image(type="pil", label="Upload Leaf Image")
-            symptom_input = gr.Textbox(label="Enter Symptoms (e.g. cough, fever)", placeholder="Describe how you feel...")
-            btn = gr.Button("Analyze with AI", variant="primary")
-        
-        with gr.Column():
-            with gr.Row():
-                out1 = gr.Textbox(label="Predicted Plant")
-                out2 = gr.Textbox(label="Confidence Level")
-            out3 = gr.Textbox(label="Herbal Benefits", lines=3)
-            out4 = gr.Textbox(label="Recommended Herbs for Symptoms")
+        img = gr.Image(type="pil", label="Upload Leaf Image")
+        symptom = gr.Textbox(label="Enter Symptoms (e.g. cough, fever)")
 
-    btn.click(predict, inputs=[img_input, symptom_input], outputs=[out1, out2, out3, out4])
+    btn = gr.Button("Analyze with AI", variant="primary")
 
-# --- LAUNCH LOGIC FOR DEPLOYMENT ---
+    with gr.Row():
+        out1 = gr.Textbox(label="Predicted Plant")
+        out2 = gr.Textbox(label="Confidence")
+
+    out3 = gr.Textbox(label="Herbal Benefits")
+    out4 = gr.Textbox(label="Recommended Herbs")
+
+    btn.click(predict, inputs=[img, symptom], outputs=[out1, out2, out3, out4])
+
+# --- ADDED DEPLOYMENT LOGIC ---
 if __name__ == "__main__":
-    # This allows the server (Render/Hugging Face) to assign a port
+    # This ensures Render or Hugging Face can assign a port
     port = int(os.environ.get("PORT", 7860))
     app.launch(server_name="0.0.0.0", server_port=port)
