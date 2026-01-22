@@ -1,23 +1,21 @@
 import gradio as gr
 import numpy as np
 import os
-import pandas as pd
+import pd as pd
 from tensorflow.keras.models import load_model
 
-# --- LOAD FILES ---
-# For deployment, files must be in the same folder as this script.
-# Replace the old "/content/drive/MyDrive/..." paths with local filenames.
+# Load model - Local path for deployment
 model = load_model("herb_identifier.h5")
 
-# Since we aren't using the dataset folder anymore, 
-# you should define your 20 plant names here manually:
+# Class names exactly from your screenshot (Alphabetical order)
 class_names = [
-    "Aloe Vera", "Amla", "Basil", "Corriander", "Curry Leaf",
-    "Fenugreek", "Guava", "Hibiscus", "Jasmine", "Lemon",
-    "Mint", "Neem", "Peppermint", "Rosemary", "Sandalwood",
-    "Spinach", "Stevia", "Tulsi", "Turmeric", "Valerian"
-] 
+    "Aloe Vera", "Ashwagandha", "Bay Leaf", "Cinnamon", "Clove",
+    "Coriander", "Curry Leaves", "Fenugreek", "Garlic", "Ginger",
+    "Gotu Kola", "Hibiscus", "Indian Gooseberry", "Lemongrass", "Mint",
+    "Neem", "Pepper", "Pirandai", "Tulsi", "Turmeric"
+]
 
+# Load CSV - Local path for deployment
 df = pd.read_csv("herb_data.csv")
 herbal_info = dict(zip(df["herb"], df["benefit"]))
 
@@ -45,7 +43,6 @@ def predict(img, symptom):
 
     return plant, f"{confidence} %", benefit, ", ".join(recommend)
 
-# --- YOUR GRADIO UI ---
 css = """
 body {background: linear-gradient(to right,#e8f5e9,#ffffff);}
 h1 {text-align:center;color:#1b5e20;}
@@ -72,6 +69,6 @@ with gr.Blocks(css=css) as app:
 
 # --- ADDED DEPLOYMENT LOGIC ---
 if __name__ == "__main__":
-    # This ensures Render or Hugging Face can assign a port
+    # This allows the web server to set the port automatically
     port = int(os.environ.get("PORT", 7860))
     app.launch(server_name="0.0.0.0", server_port=port)
